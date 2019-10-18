@@ -534,6 +534,7 @@ public static final int value = 123;
 public class Test {
     static {
         i = 0;                // 给变量赋值可以正常编译通过
+        //静态语句块只能访问到定义在它之前的类变量
         System.out.print(i);  // 这句编译器会提示“非法向前引用”
     }
     static int i = 1;
@@ -658,11 +659,13 @@ public abstract class ClassLoader {
 
     protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
         synchronized (getClassLoadingLock(name)) {
-            // First, check if the class has already been loaded
+            // 检查是否已经被加载过了First, check if the class has already been loaded
             Class<?> c = findLoadedClass(name);
             if (c == null) {
                 try {
+                    // 也就是说如果父类加载器存在
                     if (parent != null) {
+                        // 优先调用父类加载器
                         c = parent.loadClass(name, false);
                     } else {
                         c = findBootstrapClassOrNull(name);
@@ -687,6 +690,25 @@ public abstract class ClassLoader {
 
     protected Class<?> findClass(String name) throws ClassNotFoundException {
         throw new ClassNotFoundException(name);
+    }
+    
+    protected final Class<?> findLoadedClass(String name) {
+        if (!checkName(name))
+            return null;
+        return findLoadedClass0(name);
+    }
+    
+    //具体实现是个native方法
+    private native final Class<?> findLoadedClass0(String name);
+    
+    // true if the name is null or has the potential to be a valid binary name
+    private boolean checkName(String name) {
+        if ((name == null) || (name.length() == 0))
+            return true;
+        if ((name.indexOf('/') != -1)
+            || (!VM.allowArraySyntax() && (name.charAt(0) == '[')))
+            return false;
+        return true;
     }
 }
 ```
